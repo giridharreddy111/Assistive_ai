@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistive AI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<video id="video" autoplay playsinline></video>
+
+<h2 style="color:white;text-align:center">
+Tap anywhere to start assistive AI
+</h2>
+
+<script src="script.js"></script>
+
+<script>
+document.body.onclick = function(){
+ startCamera()
+ document.querySelector("h2").innerText = "Assistive AI running..."
+}
+</script>
+
+</body>
+</html>
