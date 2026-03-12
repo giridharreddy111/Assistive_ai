@@ -1,28 +1,41 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Assistive AI</title>
-<link rel="stylesheet" href="style.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>EmoSense</title>
+
+<style>
+
+body{
+    margin:0;
+    background:black;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+</style>
+
 </head>
+
 
 <body>
 
+<!-- Camera preview -->
 <video id="video" autoplay playsinline></video>
 
-<h2 style="color:white;text-align:center">
-Tap anywhere to start assistive AI
-</h2>
-
+<!-- Load your existing script.js -->
 <script src="script.js"></script>
-
-<script>
-document.body.onclick = function(){
- startCamera()
- document.querySelector("h2").innerText = "Assistive AI running..."
-}
-</script>
 
 </body>
 </html>

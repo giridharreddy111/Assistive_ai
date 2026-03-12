@@ -1,12 +1,19 @@
 const video = document.getElementById("video")
 
-let emotions = []
 let speaking = false
 let lastSpeakTime = 0
 let detectionInterval = null
 let stream = null
 
-// START CAMERA AUTOMATICALLY
+let beepInterval = null
+
+let pressTimer
+let lastTap = 0
+
+let emotions = []
+let noFaceCount = 0
+let faceDetectedRecently = false
+
 window.onload = function(){
  startCamera()
 }
@@ -16,20 +23,19 @@ async function startCamera(){
  if(stream) return
 
  stream = await navigator.mediaDevices.getUserMedia({
-  video:{
-   facingMode:{ ideal:"environment" }
-  }
+  video:{ facingMode:{ ideal:"environment" } }
  })
 
  video.srcObject = stream
 
- detectionInterval = setInterval(captureFrame,2000)
+ detectionInterval = setInterval(captureFrame,800)
 
  speak("Assistive AI started")
-
 }
 
 async function captureFrame(){
+
+ if(!video.videoWidth) return
 
  const canvas = document.createElement("canvas")
 
@@ -46,62 +52,69 @@ async function captureFrame(){
 
   try{
 
-   const res = await fetch("http://127.0.0.1:8000/detect",{
+   const res = await fetch("/detect",{
     method:"POST",
     body:formData
    })
 
    const data = await res.json()
 
-   console.log("API RESULT:",data)
-
    handleResult(data)
 
   }catch(err){
-
-   console.log("API ERROR:",err)
-
+   console.log(err)
   }
 
  })
-
 }
 
 function handleResult(data){
 
- let message = ""
+ // -------- FACE DETECTED --------
+ if(data.emotion && data.emotion !== "no_face"){
 
- if(data.emotion){
-  emotions.push(data.emotion)
- }
+  faceDetectedRecently = true
+  noFaceCount = 0
 
- if(emotions.length > 5){
-  emotions.shift()
- }
+  stopBeep()
 
- if(emotions.length === 5){
-
-  const counts = {}
-
-  emotions.forEach(e=>{
-   counts[e] = (counts[e] || 0) + 1
+  emotions.push({
+   emotion:data.emotion,
+   confidence:data.confidence
   })
 
-  const dominant = Object.keys(counts).reduce((a,b)=>
-   counts[a] > counts[b] ? a : b
-  )
+  if(emotions.length >= 5){
 
-  message = "Person looks " + dominant
+   let best = emotions.sort((a,b)=>b.confidence-a.confidence)[0]
 
-  emotions = []
+   speak("Person looks " + best.emotion)
+
+   emotions = []
+  }
+
  }
 
- if(data.obstacle){
-  message += ". Obstacle " + data.obstacle.object + " ahead"
+ // -------- NO FACE --------
+ else{
+
+  noFaceCount++
+
+  if(noFaceCount > 5){
+   faceDetectedRecently = false
+  }
+
  }
 
- if(message !== ""){
-  speak(message)
+ // -------- OBSTACLE --------
+ if(!faceDetectedRecently && data.obstacle){
+  startBeep()
+ }else{
+  stopBeep()
+ }
+
+ if(!faceDetectedRecently && noFaceCount >= 5){
+  speak("No face detected")
+  noFaceCount = 0
  }
 
 }
@@ -110,7 +123,7 @@ function speak(text){
 
  const now = Date.now()
 
- if(now - lastSpeakTime < 5000) return
+ if(now - lastSpeakTime < 4000) return
 
  lastSpeakTime = now
 
@@ -120,15 +133,45 @@ function speak(text){
 
  const msg = new SpeechSynthesisUtterance(text)
 
- msg.onend = ()=>{
-  speaking = false
- }
+ msg.onend = ()=>{ speaking = false }
 
  speechSynthesis.speak(msg)
 
 }
 
-// STOP DETECTION
+function beep(){
+
+ const ctx = new AudioContext()
+
+ const osc = ctx.createOscillator()
+
+ osc.frequency.value = 1000
+
+ osc.connect(ctx.destination)
+
+ osc.start()
+
+ setTimeout(()=>{ osc.stop() },120)
+
+}
+
+function startBeep(){
+
+ if(beepInterval) return
+
+ beepInterval = setInterval(beep,500)
+
+}
+
+function stopBeep(){
+
+ if(beepInterval){
+  clearInterval(beepInterval)
+  beepInterval = null
+ }
+
+}
+
 function stopDetection(){
 
  if(detectionInterval){
@@ -141,31 +184,28 @@ function stopDetection(){
   stream = null
  }
 
+ stopBeep()
+
  speak("Detection stopped")
 
 }
 
-// LONG PRESS TO STOP
-let pressTimer
-
-document.addEventListener("touchstart", function(){
+document.addEventListener("touchstart",function(){
 
  pressTimer = setTimeout(stopDetection,1500)
 
 })
 
-document.addEventListener("touchend", function(){
+document.addEventListener("touchend",function(){
 
  clearTimeout(pressTimer)
 
 })
 
-// DOUBLE TAP TO START
-let lastTap = 0
-
-document.addEventListener("touchend", function(){
+document.addEventListener("touchend",function(){
 
  const now = new Date().getTime()
+
  const tapGap = now - lastTap
 
  if(tapGap < 300 && tapGap > 0){
